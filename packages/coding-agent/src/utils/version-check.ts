@@ -1,7 +1,23 @@
+import { realpathSync } from "fs";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
 import { getPiUserAgent } from "./pi-user-agent.ts";
 
 const LATEST_VERSION_URL = "https://pi.dev/api/latest-version";
 const DEFAULT_VERSION_CHECK_TIMEOUT_MS = 10000;
+
+function isLinkedLocalInstall(): boolean {
+	try {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
+		const packageDir = dirname(__dirname);
+		const realPackageDir = realpathSync(packageDir);
+		const normalized = realPackageDir.toLowerCase().replace(/\\/g, "/");
+		return !normalized.includes("/node_modules/");
+	} catch {
+		return false;
+	}
+}
 
 export interface LatestPiRelease {
 	version: string;
@@ -57,7 +73,7 @@ export async function getLatestPiRelease(
 	currentVersion: string,
 	options: { timeoutMs?: number } = {},
 ): Promise<LatestPiRelease | undefined> {
-	if (process.env.PI_SKIP_VERSION_CHECK || process.env.PI_OFFLINE) return undefined;
+	if (process.env.PI_SKIP_VERSION_CHECK || process.env.PI_OFFLINE || isLinkedLocalInstall()) return undefined;
 
 	const response = await fetch(LATEST_VERSION_URL, {
 		headers: {
