@@ -378,6 +378,8 @@ export interface LoadSkillsOptions {
 	skillPaths: string[];
 	/** Include default skills directories. */
 	includeDefaults: boolean;
+	/** Skill names to exclude from the loaded result. */
+	disabledNames?: string[];
 }
 
 /**
@@ -480,8 +482,11 @@ export function loadSkills(options: LoadSkillsOptions): LoadSkillsResult {
 		}
 	}
 
+	const disabledNames = new Set(options.disabledNames ?? []);
+	const skills = Array.from(skillMap.values()).filter((skill) => !disabledNames.has(skill.name));
+
 	return {
-		skills: Array.from(skillMap.values()),
+		skills,
 		diagnostics: [...allDiagnostics, ...collisionDiagnostics],
 	};
 }

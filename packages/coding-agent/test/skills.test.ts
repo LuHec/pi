@@ -388,6 +388,29 @@ describe("skills", () => {
 			});
 			expect(withTilde.length).toBe(withoutTilde.length);
 		});
+
+		it("should exclude disabled skill names", () => {
+			const { skills } = loadSkills({
+				agentDir: emptyAgentDir,
+				cwd: emptyCwd,
+				skillPaths: [join(fixturesDir, "valid-skill")],
+				includeDefaults: false,
+				disabledNames: ["valid-skill"],
+			});
+			expect(skills).toHaveLength(0);
+		});
+
+		it("should only exclude matching disabled names", () => {
+			const { skills } = loadSkills({
+				agentDir: emptyAgentDir,
+				cwd: emptyCwd,
+				skillPaths: [join(fixturesDir, "valid-skill")],
+				includeDefaults: false,
+				disabledNames: ["other-skill"],
+			});
+			expect(skills).toHaveLength(1);
+			expect(skills[0].name).toBe("valid-skill");
+		});
 	});
 
 	describe("collision handling", () => {

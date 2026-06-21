@@ -81,11 +81,39 @@ Skills register as `/skill:name` commands:
 
 Arguments after the command are appended to the skill content as `User: <args>`.
 
-Toggle skill commands via `/settings` in interactive mode or in `settings.json`:
+Enable or disable skill commands via `/settings` in interactive mode or in `settings.json`:
 
 ```json
 {
   "enableSkillCommands": true
+}
+```
+
+### Enabling and Disabling Individual Skills
+
+Disable a skill so it is not loaded into the system prompt or available as a `/skill:name` command:
+
+```bash
+/skilloff brave-search
+```
+
+Re-enable it:
+
+```bash
+/skillon brave-search
+```
+
+List all skills and their on/off status:
+
+```bash
+/skills
+```
+
+Disabled skill names are persisted in `settings.json` under `disabledSkills`:
+
+```json
+{
+  "disabledSkills": ["brave-search"]
 }
 ```
 

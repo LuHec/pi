@@ -539,6 +539,21 @@ export class InteractiveMode {
 			}
 		}
 
+		// Add skill toggle command argument completions
+		const disabledSkillNames = this.settingsManager.getDisabledSkills();
+		const enabledSkillNames = this.session.resourceLoader.getSkills().skills.map((s) => s.name);
+		const skillToggleCommands = ["skillon", "skilloff"];
+		for (const commandName of skillToggleCommands) {
+			const command = slashCommands.find((c) => c.name === commandName);
+			if (!command) continue;
+			const candidates = commandName === "skillon" ? disabledSkillNames : enabledSkillNames;
+			command.getArgumentCompletions = (prefix: string): AutocompleteItem[] | null => {
+				const filtered = candidates.filter((name) => name.startsWith(prefix));
+				if (filtered.length === 0) return null;
+				return filtered.map((name) => ({ value: name, label: name }));
+			};
+		}
+
 		return new CombinedAutocompleteProvider(
 			[...slashCommands, ...templateCommands, ...extensionCommands, ...skillCommandList],
 			this.sessionManager.getCwd(),
@@ -2588,6 +2603,21 @@ export class InteractiveMode {
 			if (text === "/reload") {
 				this.editor.setText("");
 				await this.handleReloadCommand();
+				return;
+			}
+			if (text === "/skills") {
+				this.editor.setText("");
+				this.handleSkillsCommand();
+				return;
+			}
+			if (text === "/skillon" || text.startsWith("/skillon ")) {
+				this.editor.setText("");
+				await this.handleSkillToggleCommand(text.slice(9).trim(), true);
+				return;
+			}
+			if (text === "/skilloff" || text.startsWith("/skilloff ")) {
+				this.editor.setText("");
+				await this.handleSkillToggleCommand(text.slice(10).trim(), false);
 				return;
 			}
 			if (text === "/debug") {
@@ -5002,6 +5032,55 @@ export class InteractiveMode {
 			dismissReloadBox(previousEditor as Component);
 			this.showError(`Reload failed: ${error instanceof Error ? error.message : String(error)}`);
 		}
+	}
+
+	private handleSkillsCommand(): void {
+		const enabledSkills = this.session.resourceLoader.getSkills().skills;
+		const disabledNames = this.settingsManager.getDisabledSkills();
+
+		const lines: string[] = [];
+		for (const skill of enabledSkills) {
+			lines.push(`[on]  ${skill.name}`);
+		}
+		for (const name of disabledNames) {
+			lines.push(`[off] ${name}`);
+		}
+
+		const message = lines.length > 0 ? lines.join("\n") : "No skills loaded.";
+		this.showStatus(message);
+	}
+
+	private async handleSkillToggleCommand(name: string, enable: boolean): Promise<void> {
+		if (!name) {
+			const names = enable
+				? this.settingsManager.getDisabledSkills()
+				: this.session.resourceLoader.getSkills().skills.map((s) => s.name);
+			this.showWarning(`Available: ${names.join(", ") || "(none)"}`);
+			return;
+		}
+
+		const disabled = new Set(this.settingsManager.getDisabledSkills());
+		const wasDisabled = disabled.has(name);
+
+		if (enable) {
+			if (!wasDisabled) {
+				this.showWarning(`Skill "${name}" is already enabled.`);
+				return;
+			}
+			disabled.delete(name);
+		} else {
+			if (wasDisabled) {
+				this.showWarning(`Skill "${name}" is already disabled.`);
+				return;
+			}
+			disabled.add(name);
+		}
+
+		this.settingsManager.setDisabledSkills(Array.from(disabled));
+		await this.settingsManager.flush();
+		await this.session.reload();
+		this.setupAutocompleteProvider();
+		this.showStatus(`${enable ? "Enabled" : "Disabled"} skill "${name}".`);
 	}
 
 	private async handleExportCommand(text: string): Promise<void> {

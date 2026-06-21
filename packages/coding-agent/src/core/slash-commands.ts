@@ -36,5 +36,8 @@ export const BUILTIN_SLASH_COMMANDS: ReadonlyArray<BuiltinSlashCommand> = [
 	{ name: "compact", description: "Manually compact the session context" },
 	{ name: "resume", description: "Resume a different session" },
 	{ name: "reload", description: "Reload keybindings, extensions, skills, prompts, and themes" },
+	{ name: "skills", description: "List all skills and their on/off status" },
+	{ name: "skillon", description: "Enable a skill by name" },
+	{ name: "skilloff", description: "Disable a skill by name" },
 	{ name: "quit", description: `Quit ${APP_NAME}` },
 ];

@@ -340,4 +340,29 @@ describe("SettingsManager", () => {
 			expect(manager.getSessionDir()).toBe(join(homedir(), "sessions"));
 		});
 	});
+
+	describe("disabledSkills", () => {
+		it("should return empty array by default", () => {
+			const manager = SettingsManager.create(projectDir, agentDir);
+			expect(manager.getDisabledSkills()).toEqual([]);
+		});
+
+		it("should load disabledSkills from settings", () => {
+			writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ disabledSkills: ["foo", "bar"] }));
+			const manager = SettingsManager.create(projectDir, agentDir);
+			expect(manager.getDisabledSkills()).toEqual(["foo", "bar"]);
+		});
+
+		it("should save disabledSkills", async () => {
+			const settingsPath = join(agentDir, "settings.json");
+			writeFileSync(settingsPath, JSON.stringify({}));
+
+			const manager = SettingsManager.create(projectDir, agentDir);
+			manager.setDisabledSkills(["foo"]);
+			await manager.flush();
+
+			const savedSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
+			expect(savedSettings.disabledSkills).toEqual(["foo"]);
+		});
+	});
 });
