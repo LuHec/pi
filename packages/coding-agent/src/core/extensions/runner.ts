@@ -35,9 +35,13 @@ import type {
 	InputEvent,
 	InputEventResult,
 	InputSource,
+	LoadExtensionsResult,
 	MessageEndEvent,
 	MessageEndEventResult,
 	MessageRenderer,
+	ProjectTrustContext,
+	ProjectTrustEvent,
+	ProjectTrustEventResult,
 	ProviderConfig,
 	RegisteredCommand,
 	RegisteredTool,
@@ -116,6 +120,7 @@ interface BeforeAgentStartCombinedResult {
 type RunnerEmitEvent = Exclude<
 	ExtensionEvent,
 	| ToolCallEvent
+	| ProjectTrustEvent
 	| ToolResultEvent
 	| UserBashEvent
 	| ContextEvent
@@ -189,6 +194,38 @@ export async function emitSessionShutdownEvent(
 	return false;
 }
 
+export async function emitProjectTrustEvent(
+	extensionsResult: LoadExtensionsResult,
+	event: ProjectTrustEvent,
+	ctx: ProjectTrustContext,
+): Promise<{ result?: ProjectTrustEventResult; errors: ExtensionError[] }> {
+	const errors: ExtensionError[] = [];
+	for (const ext of extensionsResult.extensions) {
+		// A single extension may register multiple handlers for the same event.
+		// The first project_trust handler that returns yes/no wins; undecided falls through.
+		const handlers = ext.handlers.get("project_trust");
+		if (!handlers || handlers.length === 0) continue;
+
+		for (const handler of handlers) {
+			try {
+				const handlerResult = (await handler(event, ctx)) as ProjectTrustEventResult;
+				if (handlerResult.trusted === "undecided") {
+					continue;
+				}
+				return { result: handlerResult, errors };
+			} catch (error) {
+				errors.push({
+					extensionPath: ext.path,
+					event: event.type,
+					error: error instanceof Error ? error.message : String(error),
+					stack: error instanceof Error ? error.stack : undefined,
+				});
+			}
+		}
+	}
+	return { errors };
+}
+
 const noOpUIContext: ExtensionUIContext = {
 	select: async () => undefined,
 	confirm: async () => false,
@@ -233,6 +270,7 @@ export class ExtensionRunner {
 	private errorListeners: Set<ExtensionErrorListener> = new Set();
 	private getModel: () => Model<any> | undefined = () => undefined;
 	private isIdleFn: () => boolean = () => true;
+	private isProjectTrustedFn: () => boolean = () => true;
 	private getSignalFn: () => AbortSignal | undefined = () => undefined;
 	private waitForIdleFn: () => Promise<void> = async () => {};
 	private abortFn: () => void = () => {};
@@ -240,6 +278,7 @@ export class ExtensionRunner {
 	private getContextUsageFn: () => ContextUsage | undefined = () => undefined;
 	private compactFn: (options?: CompactOptions) => void = () => {};
 	private getSystemPromptFn: () => string = () => "";
+	private getSystemPromptOptionsFn: () => BuildSystemPromptOptions = () => ({ cwd: this.cwd });
 	private newSessionHandler: NewSessionHandler = async () => ({ cancelled: false });
 	private forkHandler: ForkHandler = async () => ({ cancelled: false });
 	private navigateTreeHandler: NavigateTreeHandler = async () => ({ cancelled: false });
@@ -292,6 +331,7 @@ export class ExtensionRunner {
 		// Context actions (required)
 		this.getModel = contextActions.getModel;
 		this.isIdleFn = contextActions.isIdle;
+		this.isProjectTrustedFn = contextActions.isProjectTrusted;
 		this.getSignalFn = contextActions.getSignal;
 		this.abortFn = contextActions.abort;
 		this.hasPendingMessagesFn = contextActions.hasPendingMessages;
@@ -299,6 +339,7 @@ export class ExtensionRunner {
 		this.getContextUsageFn = contextActions.getContextUsage;
 		this.compactFn = contextActions.compact;
 		this.getSystemPromptFn = contextActions.getSystemPrompt;
+		this.getSystemPromptOptionsFn = contextActions.getSystemPromptOptions ?? (() => ({ cwd: this.cwd }));
 
 		// Flush provider registrations queued during extension loading
 		for (const { name, config, extensionPath } of this.runtime.pendingProviderRegistrations) {
@@ -609,6 +650,10 @@ export class ExtensionRunner {
 				runner.assertActive();
 				return runner.isIdleFn();
 			},
+			isProjectTrusted: () => {
+				runner.assertActive();
+				return runner.isProjectTrustedFn();
+			},
 			get signal() {
 				runner.assertActive();
 				return runner.getSignalFn();
@@ -648,6 +693,10 @@ export class ExtensionRunner {
 			{},
 			Object.getOwnPropertyDescriptors(this.createContext()),
 		) as ExtensionCommandContext;
+		context.getSystemPromptOptions = () => {
+			this.assertActive();
+			return this.getSystemPromptOptionsFn();
+		};
 		context.waitForIdle = () => {
 			this.assertActive();
 			return this.waitForIdleFn();
