@@ -540,8 +540,8 @@ export class InteractiveMode {
 		}
 
 		// Add skill toggle command argument completions
-		const disabledSkillNames = this.settingsManager.getDisabledSkills();
 		const enabledSkillNames = this.session.resourceLoader.getSkills().skills.map((s) => s.name);
+		const disabledSkillNames = this.settingsManager.getDisabledSkills();
 		const skillToggleCommands = ["skillon", "skilloff"];
 		for (const commandName of skillToggleCommands) {
 			const command = slashCommands.find((c) => c.name === commandName);
