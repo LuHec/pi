@@ -3,6 +3,7 @@ import { Container, Markdown, type MarkdownTheme, Spacer, Text } from "@earendil
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { getAgentDir } from "../../../config.ts";
+import { applyAssistantRenderedLineTransforms } from "../../../core/assistant-render-transforms.ts";
 import { getMarkdownTheme, theme } from "../theme/theme.ts";
 
 const OSC133_ZONE_START = "\x1b]133;A\x07";
@@ -178,9 +179,9 @@ class AssistantTextMarkdown extends Markdown {
 				? Math.max(MIN_ASSISTANT_TEXT_WIDTH, Math.min(configuredWidth, width))
 				: width;
 		const leftPad = contentWidth < width ? Math.floor((width - contentWidth) / 2) : 0;
-		const lines = super.render(contentWidth);
+		const lines = applyAssistantRenderedLineTransforms(super.render(contentWidth));
 		const styledLines = settings.dialogueHighlight ? applyDialogueColor(lines) : lines;
-		return styledLines.map((line) => indentLine(line, leftPad));
+		return styledLines.map((line) => indentLine(line, leftPad).trimEnd());
 	}
 }
 
@@ -266,10 +267,9 @@ export class AssistantMessageComponent extends Container {
 		for (let i = 0; i < message.content.length; i++) {
 			const content = message.content[i];
 			if (content.type === "text" && content.text.trim()) {
-				// Assistant text messages with no background - trim the text
-				// Set paddingY=0 to avoid extra spacing before tool executions
+				// Assistant text messages have no background, so avoid Markdown padding around prose.
 				this.contentContainer.addChild(
-					new AssistantTextMarkdown(content.text.trim(), 1, 0, this.markdownTheme, {
+					new AssistantTextMarkdown(content.text.trim(), 0, 0, this.markdownTheme, {
 						color: (text: string) => theme.fg("text", text),
 					}),
 				);

@@ -24,6 +24,7 @@ import { CONFIG_DIR_NAME, getAgentDir, isBunBinary } from "../../config.ts";
 // avoiding a circular dependency. Extensions can import from @earendil-works/pi-coding-agent.
 import * as _bundledPiCodingAgent from "../../index.ts";
 import { resolvePath } from "../../utils/paths.ts";
+import { registerAssistantRenderedLineTransform } from "../assistant-render-transforms.ts";
 import { createEventBus, type EventBus } from "../event-bus.ts";
 import type { ExecOptions } from "../exec.ts";
 import { execCommand } from "../exec.ts";
@@ -232,6 +233,11 @@ function createExtensionAPI(
 		registerMessageRenderer<T>(customType: string, renderer: MessageRenderer<T>): void {
 			runtime.assertActive();
 			extension.messageRenderers.set(customType, renderer as MessageRenderer);
+		},
+
+		registerAssistantRenderedLineTransform(id: string, transform): void {
+			runtime.assertActive();
+			registerAssistantRenderedLineTransform(`${extension.resolvedPath}:${id}`, transform);
 		},
 
 		// Flag access - checks extension registered it, reads from runtime

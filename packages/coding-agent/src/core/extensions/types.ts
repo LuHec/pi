@@ -41,6 +41,7 @@ import type {
 } from "@earendil-works/pi-tui";
 import type { Static, TSchema } from "typebox";
 import type { Theme } from "../../modes/interactive/theme/theme.ts";
+import type { AssistantRenderedLineTransform } from "../assistant-render-transforms.ts";
 import type { BashResult } from "../bash-executor.ts";
 import type { CompactionPreparation, CompactionResult } from "../compaction/index.ts";
 import type { EventBus } from "../event-bus.ts";
@@ -1175,6 +1176,9 @@ export interface ExtensionAPI {
 
 	/** Register a custom renderer for CustomMessageEntry. */
 	registerMessageRenderer<T = unknown>(customType: string, renderer: MessageRenderer<T>): void;
+
+	/** Register a line-level transform for assistant text after Markdown wrapping and before terminal display. */
+	registerAssistantRenderedLineTransform(id: string, transform: AssistantRenderedLineTransform): void;
 
 	// =========================================================================
 	// Actions
