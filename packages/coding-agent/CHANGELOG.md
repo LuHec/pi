@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added `/skillon`, `/skilloff`, and `/skills` commands to enable, disable, and list skills in interactive mode. Disabled skills are persisted in `settings.json` under `disabledSkills`.
 - Added `ctx.mode` to extension contexts so extensions can distinguish TUI, RPC, JSON, and print mode.
 
 ### Fixed
