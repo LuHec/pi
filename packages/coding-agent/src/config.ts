@@ -58,9 +58,25 @@ function makeSelfUpdateCommandStep(command: string, args: string[]): SelfUpdateC
 	};
 }
 
+function isLinkedLocalInstall(): boolean {
+	try {
+		const packageDir = dirname(__dirname);
+		const realPackageDir = realpathSync(packageDir);
+		const normalized = realPackageDir.toLowerCase().replace(/\\/g, "/");
+		return !normalized.includes("/node_modules/");
+	} catch {
+		return false;
+	}
+}
+
 export function detectInstallMethod(): InstallMethod {
 	if (isBunBinary) {
 		return "bun-binary";
+	}
+
+	// Local development checkouts (including npm link) should not self-update.
+	if (isLinkedLocalInstall()) {
+		return "unknown";
 	}
 
 	const resolvedPath = `${__dirname}\0${process.execPath || ""}`.toLowerCase().replace(/\\/g, "/");
